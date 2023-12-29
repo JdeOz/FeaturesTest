@@ -3,8 +3,9 @@ package com.test.featurestest.data.repository
 import com.test.featurestest.domain.model.Client
 import com.test.featurestest.domain.model.Direccion
 import com.test.featurestest.domain.repository.ClientRepository
+import javax.inject.Inject
 
-class ClientRepositoryImpl : ClientRepository {
+class ClientRepositoryImpl @Inject constructor() : ClientRepository {
     override fun getClienteById(clienteId: String): Client {
         return Client(
             clienteId = 1,
@@ -13,8 +14,8 @@ class ClientRepositoryImpl : ClientRepository {
             dCliente = "Client Number 1",
             nic = "990000$clienteId",
             codigo = "5533",
-            telefono1 = "95123457",
-            telefono2 = "957654321",
+            telefono1 = "987102848",
+            telefono2 = "987102848",
             telefonoSms = "",
             direcciones = listOf(
                 Direccion(

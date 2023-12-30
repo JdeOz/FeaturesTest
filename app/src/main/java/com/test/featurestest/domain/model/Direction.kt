@@ -1,6 +1,6 @@
 package com.test.featurestest.domain.model
 
-data class Direccion(
+data class Direction(
     val personaAlmacenId: Int,
     val personaId: Int,
     val ubigeoId: Int,

@@ -9,6 +9,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import android.net.Uri
+import android.os.Build
 import com.test.featurestest.data.repository.ClientRepositoryImpl
 import com.test.featurestest.data.repository.ResultRepositoryImpl
 import com.test.featurestest.domain.model.Client
@@ -17,9 +18,15 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import android.provider.CallLog
 import androidx.activity.compose.ManagedActivityResultLauncher
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.viewModelScope
+import com.test.featurestest.domain.model.Phone
+import com.test.featurestest.domain.model.Register
 import com.test.featurestest.util.Constants.MIN_DURATION
 import kotlinx.coroutines.launch
+import timber.log.Timber
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 @HiltViewModel
 class CallLogViewModel @Inject constructor(
@@ -30,23 +37,26 @@ class CallLogViewModel @Inject constructor(
     private val _client = MutableLiveData<Client>()
     val client: LiveData<Client> = _client
 
+    private var _phones = MutableLiveData<List<Phone>>()
+    val phones: LiveData<List<Phone>> = _phones
+
     private var _isExpanded = mutableStateOf(false)
     val isExpanded: State<Boolean> = _isExpanded
 
     private var _results = MutableLiveData<List<Result>>()
     val results: LiveData<List<Result>> = _results
 
-    private val _result = mutableStateOf("")
-    val result: State<String> = _result
+    private val _result = MutableLiveData<Result>()
+    val result: LiveData<Result> = _result
+
+    private val _selectedResult = mutableStateOf(false)
+    val selectedResult: State<Boolean> = _selectedResult
 
     private val _commentText = mutableStateOf("")
     val commentText: State<String> = _commentText
 
     private val _initScreen = mutableStateOf(true)
     val initScreen: State<Boolean> = _initScreen
-
-    private val _callDurations = mutableStateOf<List<Long>>(listOf(0L, 0L, 0L))
-    val callDurations: State<List<Long>> = _callDurations
 
     fun setCommentText(comment: String) {
         _commentText.value = comment
@@ -56,9 +66,22 @@ class CallLogViewModel @Inject constructor(
         _isExpanded.value = value
     }
 
-    fun selectGender(newGender: String) {
-        _result.value = newGender
+    fun selectResult(newResult: Result) {
+        _result.value = newResult
+        _selectedResult.value = true
         _isExpanded.value = false
+    }
+
+    fun updatePhones(context:Context){
+        val phone1 = _client.value!!.telefono1
+        val phone2 = _client.value!!.telefono2
+        val phoneSms = _client.value!!.telefonoSms
+        val phones = listOf(
+            Phone(phone1,"Teléfono principal", getLastCallDuration(context, phone1)),
+            Phone(phone2,"Teléfono secundario", getLastCallDuration(context, phone2)),
+            Phone(phoneSms,"Teléfono SMS", getLastCallDuration(context,phoneSms))
+        )
+        _phones.value = phones
     }
 
     fun loadClient(clientId: String, launcher: ManagedActivityResultLauncher<String, Boolean>) {
@@ -98,35 +121,61 @@ class CallLogViewModel @Inject constructor(
         return duration
     }
 
-
-    fun updateDurations(context: Context) {
-        val updatedDurations = listOf(
-            getLastCallDuration(context, _client.value!!.telefono1),
-            getLastCallDuration(context, _client.value!!.telefono2),
-            getLastCallDuration(context, _client.value!!.telefonoSms)
-        )
-
-        _callDurations.value = updatedDurations
-    }
-
-    fun getDurationCond():Boolean{
-        var durationCond = false
-        _callDurations.value.forEach { duration ->
-            if(duration>= MIN_DURATION){
-                durationCond = true
+    fun getDuration(): Phone? {
+        _phones.value!!.forEach { phone ->
+            if (phone.lastDuration >= MIN_DURATION) {
+                return phone
             }
         }
-        return durationCond
+        return null
+    }
+
+    fun getDurationCond(): Boolean {
+        val phone = getDuration()
+        return phone != null
     }
 
     fun enableRegisterButton(): Boolean {
 
-        return _result.value.isNotEmpty() && _commentText.value.isNotEmpty() && getDurationCond()
+        return _selectedResult.value && _commentText.value.isNotEmpty() && getDurationCond()
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     fun doRegister() {
         if (_initScreen.value) {
             _initScreen.value = false
+            return
         }
+        val newRegister = createRegisterObject()
+        Timber.d(newRegister.toString())
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun createRegisterObject(): Register {
+        val rutaId = _client.value!!.rutaId
+        val clienteId = _client.value!!.clienteId
+        val vendedorId = 1
+        val resultadoId = _result.value!!.id
+        val resultado = _result.value!!.description
+        val phone = getDuration()!!
+
+        val currentDateTime = LocalDateTime.now()
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
+        val fecha = currentDateTime.format(formatter)
+
+        val comentario = _commentText.value
+
+
+        return Register(
+            rutaId = rutaId,
+            clienteId = clienteId,
+            vendedorId = vendedorId,
+            resultadoId = resultadoId,
+            resultado = resultado,
+            telefono = phone.number,
+            duracion = phone.lastDuration,
+            fecha = fecha,
+            comentario = comentario
+        )
     }
 }

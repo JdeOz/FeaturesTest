@@ -1,7 +1,7 @@
 package com.test.featurestest.data.repository
 
 import com.test.featurestest.domain.model.Client
-import com.test.featurestest.domain.model.Direccion
+import com.test.featurestest.domain.model.Direction
 import com.test.featurestest.domain.repository.ClientRepository
 import javax.inject.Inject
 
@@ -16,9 +16,11 @@ class ClientRepositoryImpl @Inject constructor() : ClientRepository {
             codigo = "5533",
             telefono1 = "987102848",
             telefono2 = "987102848",
+//            telefono1 = "95123457",
+//            telefono2 = "957654321",
             telefonoSms = "",
             direcciones = listOf(
-                Direccion(
+                Direction(
                     personaAlmacenId = 1,
                     personaId = 1,
                     ubigeoId = 1,

@@ -10,7 +10,7 @@ data class Client(
     val telefono1: String,
     val telefono2: String,
     val telefonoSms: String,
-    val direcciones: List<Direccion>,
+    val direcciones: List<Direction>,
     val rutaId: Int,
     val deudaDias: Int
 )

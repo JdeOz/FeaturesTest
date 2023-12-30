@@ -1,8 +1,10 @@
 package com.test.featurestest.presentation.call_log
 
 import android.content.Context
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -53,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.test.featurestest.domain.model.Phone
 import com.test.featurestest.util.Constants.MIN_DURATION
 
 
@@ -69,7 +72,7 @@ fun CallLogScreen(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
             if (isGranted) {
-                viewModel.updateDurations(context)
+                viewModel.updatePhones(context)
             }
         })
 
@@ -95,7 +98,7 @@ fun CallLogScreen(
             )
         }
     ) { innerPadding ->
-        if (viewModel.client.observeAsState().value != null) {
+        if (viewModel.client.observeAsState().value != null && viewModel.results.observeAsState().value != null) {
             CallLogContent(innerPadding, context, viewModel)
         }
     }
@@ -118,28 +121,9 @@ fun CallLogContent(innerPadding: PaddingValues, context: Context, viewModel: Cal
 
         Divider()
 
-        //TODO: Mejorar con un struct
-        PhoneCard(
-            viewModel,
-            context,
-            phoneNumber = client.telefono1,
-            phoneType = "Teléfono principal",
-            index = 0
-        )
-        PhoneCard(
-            viewModel,
-            context,
-            phoneNumber = client.telefono2,
-            phoneType = "Teléfono secundario",
-            index = 1
-        )
-        PhoneCard(
-            viewModel,
-            context,
-            phoneNumber = client.telefonoSms,
-            phoneType = "Teléfono SMS",
-            index = 2
-        )
+
+        PhoneCards(viewModel, context)
+
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -182,16 +166,14 @@ fun ClientName(clientName: String) {
 fun PhoneCard(
     viewModel: CallLogViewModel,
     context: Context,
-    phoneNumber: String,
-    phoneType: String,
-    index: Int
+    phone: Phone
 ) {
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
             if (isGranted) {
-                viewModel.makePhoneCall(context, phoneNumber)
+                viewModel.makePhoneCall(context, phone.number)
             }
         })
 
@@ -219,13 +201,22 @@ fun PhoneCard(
             }
 
             Spacer(modifier = Modifier.width(8.dp))
-            Text("$phoneNumber ($phoneType)", color = Color.Gray)
+            Text("${phone.number} (${phone.name})", color = Color.Gray)
         }
         Text(
-            text = viewModel.callDurations.value[index].toString() + " Seg.",
+            text = phone.lastDuration.toString() + " Seg.",
             color = if (!viewModel.getDurationCond() && !viewModel.initScreen.value) MaterialTheme.colorScheme.error else Color.Gray
         )
     }
+}
+
+@Composable
+fun PhoneCards(viewModel: CallLogViewModel, context: Context) {
+
+    viewModel.phones.observeAsState().value?.forEach() { phone ->
+        PhoneCard(viewModel = viewModel, context = context, phone = phone)
+    }
+
 }
 
 @Composable
@@ -240,7 +231,7 @@ fun UpdateDurations(viewModel: CallLogViewModel, context: Context) {
         Box(
             modifier = Modifier
                 .clickable(onClick = {
-                    viewModel.updateDurations(context)
+                    viewModel.updatePhones(context)
                 })
                 .size(32.dp)
                 .background(Color.LightGray, RoundedCornerShape(4.dp))
@@ -270,10 +261,10 @@ fun SelectResult(viewModel: CallLogViewModel) {
         modifier = Modifier.padding(4.dp)
     ) {
         OutlinedTextField(
-            value = viewModel.result.value,
+            value = if(viewModel.selectedResult.value)viewModel.result.value!!.description else "",
             onValueChange = {},
             readOnly = true,
-            isError = viewModel.result.value.isEmpty() && !viewModel.initScreen.value,
+            isError = !viewModel.selectedResult.value && !viewModel.initScreen.value,
             label = { Text(text = "Resultado") },
             placeholder = { Text(text = "Seleccione un resultado") },
             trailingIcon = {
@@ -299,7 +290,7 @@ fun SelectResult(viewModel: CallLogViewModel) {
                         )
                     },
                     onClick = {
-                        viewModel.selectGender(selectionOption.description)
+                        viewModel.selectResult(selectionOption)
                         viewModel.setExpanded(false)
                     },
                     contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
@@ -344,6 +335,7 @@ fun WarningText(warning: String) {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun RegisterButton(viewModel: CallLogViewModel) {
     Column(
@@ -357,7 +349,7 @@ fun RegisterButton(viewModel: CallLogViewModel) {
             if (!viewModel.getDurationCond()) {
                 WarningText("Alguna llamada debe durar al menos $MIN_DURATION s.")
             }
-            if (viewModel.result.value.isEmpty()) {
+            if (!viewModel.selectedResult.value) {
                 WarningText("Seleccione un resultado.")
             }
             if (viewModel.commentText.value.isEmpty()) {

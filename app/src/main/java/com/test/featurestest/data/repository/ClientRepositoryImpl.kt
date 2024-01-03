@@ -1,13 +1,17 @@
 package com.test.featurestest.data.repository
 
+import com.test.featurestest.data.network.ClientService
 import com.test.featurestest.domain.model.Client
 import com.test.featurestest.domain.model.Direction
 import com.test.featurestest.domain.repository.ClientRepository
+import com.test.featurestest.util.mapClientApiModelToClient
 import javax.inject.Inject
 
 class ClientRepositoryImpl @Inject constructor() : ClientRepository {
-    override fun getClienteById(clienteId: String): Client {
-        return Client(
+    val api = ClientService()
+    override suspend fun getClienteById(clienteId: String): Client {
+
+        var client = Client(
             clienteId = 1,
             empresaId = 1,
             personaId = 1,
@@ -33,5 +37,11 @@ class ClientRepositoryImpl @Inject constructor() : ClientRepository {
             rutaId = 1,
             deudaDias = 0
         )
+        val apiClient = api.getClient()
+        if(apiClient != null) {
+            client = mapClientApiModelToClient(apiClient)
+        }
+        return client
     }
 }
+

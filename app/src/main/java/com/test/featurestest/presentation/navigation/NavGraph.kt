@@ -6,6 +6,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.test.featurestest.presentation.call_log.CallLogScreen
 import com.test.featurestest.presentation.feature_selector.FeatureSelectorScreen
+import com.test.featurestest.presentation.visit.VisitScreen
 
 @Composable
 fun NavGraph(startDestination:String = "FeatureSelector"){
@@ -21,6 +22,10 @@ fun NavGraph(startDestination:String = "FeatureSelector"){
         composable(Screen.CallLog.route) { backStackEntry ->
             val clientId = backStackEntry.arguments?.getString("clientId") ?: return@composable
             CallLogScreen(navController, clientId)
+        }
+        composable(Screen.Visit.route) { backStackEntry ->
+            val clientId = backStackEntry.arguments?.getString("clientId") ?: return@composable
+            VisitScreen(navController, clientId)
         }
     }
 

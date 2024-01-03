@@ -3,13 +3,9 @@ package com.test.featurestest.presentation.call_log
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import android.net.Uri
-import android.os.Build
 import com.test.featurestest.data.repository.ClientRepositoryImpl
 import com.test.featurestest.data.repository.ResultRepositoryImpl
 import com.test.featurestest.domain.model.Client
@@ -17,8 +13,8 @@ import com.test.featurestest.domain.model.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import android.provider.CallLog
-import androidx.activity.compose.ManagedActivityResultLauncher
-import androidx.annotation.RequiresApi
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.lifecycle.viewModelScope
 import com.test.featurestest.domain.model.Phone
 import com.test.featurestest.domain.model.Register
@@ -34,42 +30,39 @@ class CallLogViewModel @Inject constructor(
     private val resultRepository: ResultRepositoryImpl,
 ) : ViewModel() {
 
-    private val _client = MutableLiveData<Client>()
-    val client: LiveData<Client> = _client
+    private val _isLoading = mutableStateOf(true)
+    val isLoading by _isLoading
 
-    private var _phones = MutableLiveData<List<Phone>>()
-    val phones: LiveData<List<Phone>> = _phones
+    private val _error = mutableStateOf<String?>(null)
+    val error by _error
 
-    private var _isExpanded = mutableStateOf(false)
-    val isExpanded: State<Boolean> = _isExpanded
+    private var _client = mutableStateOf<Client?>(null)
+    val client by _client
 
-    private var _results = MutableLiveData<List<Result>>()
-    val results: LiveData<List<Result>> = _results
+    private var _phones = mutableStateOf<List<Phone>>(emptyList())
+    val phones by _phones
 
-    private val _result = MutableLiveData<Result>()
-    val result: LiveData<Result> = _result
-
-    private val _selectedResult = mutableStateOf(false)
-    val selectedResult: State<Boolean> = _selectedResult
-
-    private val _commentText = mutableStateOf("")
-    val commentText: State<String> = _commentText
+    private var _results = mutableStateOf<List<Result>>(emptyList())
+    val results by _results
 
     private val _initScreen = mutableStateOf(true)
-    val initScreen: State<Boolean> = _initScreen
+    val initScreen by _initScreen
+
+    private val _selectedResultIndex = mutableIntStateOf(0)
+
+    private val _isSelectedResult = mutableStateOf(false)
+    val isSelectedResult by _isSelectedResult
+
+    private val _commentText = mutableStateOf("")
+    val commentText by _commentText
 
     fun setCommentText(comment: String) {
         _commentText.value = comment
     }
 
-    fun setExpanded(value: Boolean) {
-        _isExpanded.value = value
-    }
-
-    fun selectResult(newResult: Result) {
-        _result.value = newResult
-        _selectedResult.value = true
-        _isExpanded.value = false
+    fun updateSelectedResultIndex(newIndex: Int) {
+        _selectedResultIndex.intValue = newIndex
+        _isSelectedResult.value = true
     }
 
     fun updatePhones(context:Context){
@@ -84,17 +77,17 @@ class CallLogViewModel @Inject constructor(
         _phones.value = phones
     }
 
-    fun loadClient(clientId: String, launcher: ManagedActivityResultLauncher<String, Boolean>) {
+    fun loadData(clientId: String) {
         viewModelScope.launch {
-            _client.value = clientRepository.getClienteById(clientId)
-            launcher.launch(android.Manifest.permission.READ_CALL_LOG)
-        }
-
-    }
-
-    fun loadResult() {
-        viewModelScope.launch {
-            _results.value = resultRepository.getResults()
+            try {
+                _isLoading.value = true
+                _client.value = clientRepository.getClienteById(clientId)
+                _results.value = resultRepository.getResults()
+            } catch (e: Exception) {
+                _error.value = e.message
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
@@ -121,8 +114,8 @@ class CallLogViewModel @Inject constructor(
         return duration
     }
 
-    fun getDuration(): Phone? {
-        _phones.value!!.forEach { phone ->
+    private fun getDuration(): Phone? {
+        _phones.value.forEach { phone ->
             if (phone.lastDuration >= MIN_DURATION) {
                 return phone
             }
@@ -137,10 +130,10 @@ class CallLogViewModel @Inject constructor(
 
     fun enableRegisterButton(): Boolean {
 
-        return _selectedResult.value && _commentText.value.isNotEmpty() && getDurationCond()
+        return _isSelectedResult.value && _commentText.value.isNotEmpty() && getDurationCond()
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
+
     fun doRegister() {
         if (_initScreen.value) {
             _initScreen.value = false
@@ -150,13 +143,12 @@ class CallLogViewModel @Inject constructor(
         Timber.d(newRegister.toString())
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
-    fun createRegisterObject(): Register {
+    private fun createRegisterObject(): Register {
         val rutaId = _client.value!!.rutaId
         val clienteId = _client.value!!.clienteId
         val vendedorId = 1
-        val resultadoId = _result.value!!.id
-        val resultado = _result.value!!.description
+        val resultadoId = _results.value[_selectedResultIndex.intValue].id
+        val resultado = _results.value[_selectedResultIndex.intValue].description
         val phone = getDuration()!!
 
         val currentDateTime = LocalDateTime.now()

@@ -1,10 +1,6 @@
 package com.test.featurestest.presentation.call_log
 
 import android.content.Context
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,30 +20,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -56,50 +42,55 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.test.featurestest.domain.model.Phone
+import com.test.featurestest.presentation.components.ClientCard
+import com.test.featurestest.presentation.components.MyDropDawnMenu
+import com.test.featurestest.presentation.components.MyScaffold
+import com.test.featurestest.presentation.components.WarningText
+import com.test.featurestest.presentation.components.WithPermissions
 import com.test.featurestest.util.Constants.MIN_DURATION
+import timber.log.Timber
 
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CallLogScreen(
     navController: NavHostController,
     clientId: String,
     viewModel: CallLogViewModel = hiltViewModel()
 ) {
+    val client = viewModel.client
+    val results = viewModel.results
+    val isLoading = viewModel.isLoading
+    val error = viewModel.error
+
     val context = LocalContext.current
 
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                viewModel.updatePhones(context)
-            }
-        })
 
     LaunchedEffect(Unit) {
-        viewModel.loadClient(clientId, launcher)
-        viewModel.loadResult()
+        viewModel.loadData(clientId)
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.secondary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.secondary
-                ),
-                title = { Text("Registrar Llamada") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
-                    }
+    MyScaffold(navController = navController, title = "Registrar Llamada") { innerPadding ->
+        when {
+            isLoading -> {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(innerPadding),
+                )
+            }
+
+            error != null -> {
+                Timber.d(error)
+            }
+
+            client != null && results.isNotEmpty() -> {
+                WithPermissions(
+                    permissions =  listOf(android.Manifest.permission.READ_CALL_LOG, android.Manifest.permission.CALL_PHONE),
+                    onPermissionsGranted = { viewModel.updatePhones(context) }
+                ) {
+                    CallLogContent(innerPadding, context, viewModel)
                 }
-            )
-        }
-    ) { innerPadding ->
-        if (viewModel.client.observeAsState().value != null && viewModel.results.observeAsState().value != null) {
-            CallLogContent(innerPadding, context, viewModel)
+            }
         }
     }
 }
@@ -107,8 +98,7 @@ fun CallLogScreen(
 @Composable
 fun CallLogContent(innerPadding: PaddingValues, context: Context, viewModel: CallLogViewModel) {
 
-
-    val client = viewModel.client.observeAsState().value!!
+    val client = viewModel.client!!
     val scrollState = rememberScrollState()
 
     Column(
@@ -117,13 +107,11 @@ fun CallLogContent(innerPadding: PaddingValues, context: Context, viewModel: Cal
             .padding(innerPadding)
             .verticalScroll(scrollState)
     ) {
-        ClientName(client.dCliente)
+        ClientCard(client.dCliente)
 
         Divider()
 
-
         PhoneCards(viewModel, context)
-
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -139,26 +127,10 @@ fun CallLogContent(innerPadding: PaddingValues, context: Context, viewModel: Cal
     }
 }
 
-
 @Composable
-fun ClientName(clientName: String) {
-    Row(
-        modifier = Modifier
-            .padding(16.dp)
-            .fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            imageVector = Icons.Default.Person,
-            contentDescription = "Icono de persona",
-
-            )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = clientName,
-            color = Color.Gray,
-            fontWeight = FontWeight.Bold
-        )
+fun PhoneCards(viewModel: CallLogViewModel, context: Context) {
+    viewModel.phones.forEach { phone ->
+        PhoneCard(viewModel = viewModel, context = context, phone = phone)
     }
 }
 
@@ -169,13 +141,13 @@ fun PhoneCard(
     phone: Phone
 ) {
 
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                viewModel.makePhoneCall(context, phone.number)
-            }
-        })
+//    val launcher = rememberLauncherForActivityResult(
+//        contract = ActivityResultContracts.RequestPermission(),
+//        onResult = { isGranted ->
+//            if (isGranted) {
+//                viewModel.makePhoneCall(context, phone.number)
+//            }
+//        })
 
     Row(
         modifier = Modifier
@@ -188,7 +160,8 @@ fun PhoneCard(
             Box(
                 modifier = Modifier
                     .clickable(onClick = {
-                        launcher.launch(android.Manifest.permission.CALL_PHONE)
+//                        launcher.launch(android.Manifest.permission.CALL_PHONE)
+                        viewModel.makePhoneCall(context, phone.number)
                     })
                     .size(32.dp)
                     .background(Color.LightGray, RoundedCornerShape(4.dp))
@@ -205,18 +178,9 @@ fun PhoneCard(
         }
         Text(
             text = phone.lastDuration.toString() + " Seg.",
-            color = if (!viewModel.getDurationCond() && !viewModel.initScreen.value) MaterialTheme.colorScheme.error else Color.Gray
+            color = if (!viewModel.getDurationCond() && !viewModel.initScreen) MaterialTheme.colorScheme.error else Color.Gray
         )
     }
-}
-
-@Composable
-fun PhoneCards(viewModel: CallLogViewModel, context: Context) {
-
-    viewModel.phones.observeAsState().value?.forEach() { phone ->
-        PhoneCard(viewModel = viewModel, context = context, phone = phone)
-    }
-
 }
 
 @Composable
@@ -252,107 +216,52 @@ fun UpdateDurations(viewModel: CallLogViewModel, context: Context) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SelectResult(viewModel: CallLogViewModel) {
-    ExposedDropdownMenuBox(
-        expanded = viewModel.isExpanded.value,
-        onExpandedChange = { viewModel.setExpanded(it) },
-        modifier = Modifier.padding(4.dp)
-    ) {
-        OutlinedTextField(
-            value = if(viewModel.selectedResult.value)viewModel.result.value!!.description else "",
-            onValueChange = {},
-            readOnly = true,
-            isError = !viewModel.selectedResult.value && !viewModel.initScreen.value,
-            label = { Text(text = "Resultado") },
-            placeholder = { Text(text = "Seleccione un resultado") },
-            trailingIcon = {
-                ExposedDropdownMenuDefaults.TrailingIcon(expanded = viewModel.isExpanded.value)
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor()
-        )
-        DropdownMenu(
-            expanded = viewModel.isExpanded.value,
-            onDismissRequest = { viewModel.setExpanded(false) },
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.background)
-                .exposedDropdownSize()
-        ) {
-            viewModel.results.observeAsState().value?.forEach { selectionOption ->
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = selectionOption.description,
-                            color = Color.Gray
-                        )
-                    },
-                    onClick = {
-                        viewModel.selectResult(selectionOption)
-                        viewModel.setExpanded(false)
-                    },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
-                )
-            }
+    MyDropDawnMenu(
+        selectionOptions = viewModel.results.map { it.description },
+        init = viewModel.initScreen,
+        label = "Resultado",
+        placeholder = "Seleccione un resultado",
+        onSelectionChange = { index ->
+            viewModel.updateSelectedResultIndex(index)
         }
-    }
+    )
 }
 
 @Composable
 fun Comment(viewModel: CallLogViewModel) {
     OutlinedTextField(
-        value = viewModel.commentText.value,
+        value = viewModel.commentText,
         onValueChange = { viewModel.setCommentText(it) },
-        isError = viewModel.commentText.value.isEmpty() && !viewModel.initScreen.value,
+        isError = viewModel.commentText.isEmpty() && !viewModel.initScreen,
         label = { Text("Comentarios") },
         placeholder = { Text(text = "Ingrese los comentarios") },
         maxLines = 3,
         shape = RoundedCornerShape(4.dp),
         modifier = Modifier
             .fillMaxWidth()
+            .imePadding()
             .padding(4.dp)
     )
 }
 
 @Composable
-fun WarningText(warning: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Outlined.Info,
-            tint = MaterialTheme.colorScheme.error,
-            contentDescription = "Warning"
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = warning,
-            color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.padding(bottom = 4.dp)
-        )
-    }
-}
-
-@RequiresApi(Build.VERSION_CODES.O)
-@Composable
 fun RegisterButton(viewModel: CallLogViewModel) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-//            .wrapContentSize(Alignment.Center)
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (!viewModel.initScreen.value) {
+        if (!viewModel.initScreen) {
             if (!viewModel.getDurationCond()) {
                 WarningText("Alguna llamada debe durar al menos $MIN_DURATION s.")
             }
-            if (!viewModel.selectedResult.value) {
+            if (!viewModel.isSelectedResult) {
                 WarningText("Seleccione un resultado.")
             }
-            if (viewModel.commentText.value.isEmpty()) {
+            if (viewModel.commentText.isEmpty()) {
                 WarningText("Escriba los comentarios.")
             }
         }
@@ -362,7 +271,7 @@ fun RegisterButton(viewModel: CallLogViewModel) {
                 viewModel.doRegister()
             },
             shape = RoundedCornerShape(4.dp),
-            enabled = viewModel.enableRegisterButton() || viewModel.initScreen.value
+            enabled = viewModel.enableRegisterButton() || viewModel.initScreen
         ) {
             Icon(Icons.Default.Send, contentDescription = "REGISTRAR")
             Spacer(modifier = Modifier.width(8.dp))

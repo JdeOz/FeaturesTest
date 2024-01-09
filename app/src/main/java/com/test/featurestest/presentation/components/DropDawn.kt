@@ -17,22 +17,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyDropDawnMenu(
+    modifier: Modifier = Modifier,
     selectionOptions: List<String>,
     init: Boolean,
     label: String,
     placeholder: String,
     preSelected: Boolean = false,
-    modifier: Modifier = Modifier,
     onSelectionChange: (Int) -> Unit
 
 ) {
-    var initSelected: String = ""
+    var initSelected = ""
     if (preSelected) {
         initSelected = selectionOptions[0]
     }

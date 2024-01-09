@@ -1,38 +1,24 @@
 package com.test.featurestest.presentation.visit
 
-import android.content.Context
-import android.net.Uri
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Box
+
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Divider
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -40,24 +26,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.test.featurestest.domain.model.Client
-import com.test.featurestest.presentation.components.CameraUi
 import com.test.featurestest.presentation.components.ClientCard
+import com.test.featurestest.presentation.components.FullScreenCameraDialog
+import com.test.featurestest.presentation.components.ImageCards
+import com.test.featurestest.presentation.components.MyAlertDialog
 import com.test.featurestest.presentation.components.MyDropDawnMenu
 import com.test.featurestest.presentation.components.MyScaffold
 import com.test.featurestest.presentation.components.WarningText
 import com.test.featurestest.presentation.components.WithPermissions
+import com.test.featurestest.presentation.components.MyMapComposable
+import com.test.featurestest.presentation.components.ProgressIndicator
 import timber.log.Timber
 
 @Composable
@@ -66,14 +50,6 @@ fun VisitScreen(
     clientId: String,
     viewModel: VisitViewModel = hiltViewModel()
 ) {
-    val client = viewModel.client
-    val results = viewModel.results
-    val isLoading = viewModel.isLoading
-    val error = viewModel.error
-
-    val context = LocalContext.current
-
-
     LaunchedEffect(Unit) {
         viewModel.loadData(clientId)
     }
@@ -81,49 +57,47 @@ fun VisitScreen(
     MyScaffold(
         navController = navController,
         title = "Registrar Visita",
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {  },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.secondary,
-                shape = CircleShape,
-                modifier = Modifier.padding(bottom = 16.dp)
-            ) {
-                Icon(Icons.Filled.Place, "Map")
-            }
-        }
+        floatingActionButton = { MapButton(viewModel) }
     ) { innerPadding ->
         when {
-            isLoading -> {
-                LinearProgressIndicator(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(innerPadding),
-                )
+            viewModel.isLoading -> {
+                ProgressIndicator(innerPadding)
             }
 
-            error != null -> {
-                Timber.d(error)
+            viewModel.error != null -> {
+                Timber.d(viewModel.error)
             }
 
-            client != null && results.isNotEmpty() -> {
+            viewModel.success -> {
                 WithPermissions(
                     permissions = listOf(
                         android.Manifest.permission.ACCESS_FINE_LOCATION,
                         android.Manifest.permission.CAMERA,
                         android.Manifest.permission.WRITE_EXTERNAL_STORAGE
-                    ),
-                    onPermissionsGranted = {}
-                ) {
-                    VisitContent(innerPadding, context, viewModel)
-                }
+                    )
+                )
+                VisitContent(innerPadding, viewModel)
+
             }
         }
     }
 }
 
 @Composable
-fun VisitContent(innerPadding: PaddingValues, context: Context, viewModel: VisitViewModel) {
+fun MapButton(viewModel: VisitViewModel) {
+    FloatingActionButton(
+        onClick = { viewModel.setShowMapDialog(true) },
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.secondary,
+        shape = CircleShape,
+        modifier = Modifier.padding(bottom = 16.dp)
+    ) {
+        Icon(Icons.Filled.Place, "Map")
+    }
+}
+
+@Composable
+fun VisitContent(innerPadding: PaddingValues, viewModel: VisitViewModel) {
     val client = viewModel.client!!
     val scrollState = rememberScrollState()
 
@@ -142,100 +116,17 @@ fun VisitContent(innerPadding: PaddingValues, context: Context, viewModel: Visit
 
         SelectResult(viewModel)
 
-        ImageCards(viewModel)
+        CameraSection(viewModel)
 
         Comment(viewModel)
+
+        FullScreenMapDialog(viewModel)
 
         Spacer(modifier = Modifier.weight(1f))
 
         RegisterButton(viewModel)
     }
 }
-
-@Composable
-fun ImageCards(viewModel: VisitViewModel) {
-    val scrollState = rememberScrollState()
-    FullScreenCameraDialog(viewModel, onDismissRequest = {
-        viewModel.setShowCameraDialog(false)
-    })
-
-    val cardModifier = Modifier
-        .height(256.dp)
-        .width(160.dp)
-        .padding(end = 4.dp)
-
-    Text(
-        text = "Imagenes adjuntas",
-        modifier = Modifier.padding(8.dp),
-        color = Color.Gray,
-        fontWeight = FontWeight.Bold
-    )
-    Row(
-        modifier = Modifier
-            .padding(8.dp)
-            .horizontalScroll(scrollState)
-    ) {
-        viewModel.imageUri.forEach { image ->
-            ImageCard(viewModel = viewModel, cardModifier, image = image)
-        }
-
-        Card(
-            modifier = cardModifier
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(color = Color.LightGray)
-                    .clickable { viewModel.setShowCameraDialog(true) },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AddCircle,
-                    contentDescription = "Agregar imagen",
-                    tint = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.size(72.dp)
-                )
-            }
-        }
-    }
-
-
-}
-
-@Composable
-fun ImageCard(viewModel: VisitViewModel, modifier: Modifier, image: Uri) {
-    Card(
-        modifier = modifier,
-    ) {
-
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.TopEnd
-        ) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(image)
-                    .build(),
-                contentDescription = "image",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            IconButton(
-                onClick = {viewModel.popUriImage(image) },
-                modifier = Modifier
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Agregar imagen",
-                    tint = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.size(32.dp).background(color = MaterialTheme.colorScheme.error,shape = CircleShape)
-                )
-            }
-        }
-    }
-}
-
 
 @Composable
 fun SelectDirection(viewModel: VisitViewModel, client: Client) {
@@ -264,6 +155,22 @@ fun SelectResult(viewModel: VisitViewModel) {
 }
 
 @Composable
+fun CameraSection(viewModel: VisitViewModel) {
+    FullScreenCameraDialog(
+        viewModel.showCameraDialog,
+        notShow = { viewModel.setShowCameraDialog(false) },
+    )
+    { viewModel.addUriImage(it) }
+
+    ImageCards(
+        viewModel.imageUris,
+        popImage = { viewModel.popUriImage(it) },
+        show = { viewModel.setShowCameraDialog(true) }
+    )
+}
+
+
+@Composable
 fun Comment(viewModel: VisitViewModel) {
     OutlinedTextField(
         value = viewModel.commentText,
@@ -280,31 +187,26 @@ fun Comment(viewModel: VisitViewModel) {
 }
 
 @Composable
-fun FullScreenCameraDialog(viewModel: VisitViewModel, onDismissRequest: () -> Unit) {
-    if (viewModel.showCameraDialog) {
-        Dialog(
-            onDismissRequest = onDismissRequest,
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            CameraUi(
-                modifier = Modifier.fillMaxSize(),
-                onPhotoTaken = { uri ->
-                    viewModel.addUriImage(uri)
-                    viewModel.setShowCameraDialog(false)
-                }
+fun FullScreenMapDialog(viewModel: VisitViewModel) {
+    if (viewModel.showMapDialog) {
+        if (viewModel.selectedDirectionIndex == null) {
+            MyAlertDialog(
+                onDismissRequest = { viewModel.setShowMapDialog(false) },
+                onConfirmation = { viewModel.setShowMapDialog(false) },
+                dialogTitle = "Sin dirección seleccionada",
+                dialogText = "Porfavor seleccione una direccion antes de continuar."
             )
+        } else {
+            Dialog(
+                onDismissRequest = { viewModel.setShowMapDialog(false) },
+                properties = DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                MyMapComposable(viewModel.getDirectionCoords())
+            }
         }
     }
 }
 
-@Composable
-fun imageDialog(viewModel: VisitViewModel, onDismissRequest: () -> Unit) {
-    if (viewModel.showImageDialog) {
-        Dialog(onDismissRequest = onDismissRequest) {
-
-        }
-    }
-}
 
 @Composable
 fun RegisterButton(viewModel: VisitViewModel) {
@@ -315,11 +217,14 @@ fun RegisterButton(viewModel: VisitViewModel) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         if (!viewModel.initScreen) {
-            if (!viewModel.isSelectedDirection) {
+            if (viewModel.selectedDirectionIndex == null) {
                 WarningText("Seleccione un almacén.")
             }
-            if (!viewModel.isSelectedResult) {
+            if (viewModel.selectedResultIndex == null) {
                 WarningText("Seleccione un resultado.")
+            }
+            if (viewModel.imageUris.isEmpty()) {
+                WarningText("Adjunte al menos una fotos.")
             }
             if (viewModel.commentText.isEmpty()) {
                 WarningText("Escriba los comentarios.")

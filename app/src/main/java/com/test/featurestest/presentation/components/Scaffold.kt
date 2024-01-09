@@ -12,9 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.navigation.NavHostController
-import com.test.featurestest.presentation.call_log.CallLogContent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,9 +26,9 @@ fun MyScaffold(
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.secondary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.secondary
+                    containerColor = MaterialTheme.colorScheme.tertiary,
+                    titleContentColor = MaterialTheme.colorScheme.onTertiary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onTertiary
                 ),
                 title = { Text(title) },
                 navigationIcon = {

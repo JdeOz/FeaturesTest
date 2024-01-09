@@ -11,8 +11,7 @@ import androidx.compose.ui.platform.LocalContext
 @Composable
 fun WithPermissions(
     permissions: List<String>,
-    onPermissionsGranted: () -> Unit,
-    content: @Composable () -> Unit
+    onPermissionsGranted: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val permissionsStatus = remember { mutableStateOf(PermissionStatus.Pending) }
@@ -36,8 +35,6 @@ fun WithPermissions(
         PermissionStatus.Denied -> {}
         PermissionStatus.Pending -> {}
     }
-
-    content()
 }
 
 enum class PermissionStatus {

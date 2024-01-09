@@ -1,5 +1,5 @@
 package com.test.featurestest.util
 
 object Constants {
-    const val MIN_DURATION = 0
+    const val MIN_DURATION = 3
 }

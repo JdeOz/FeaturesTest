@@ -18,7 +18,7 @@ class ClientRepositoryImpl @Inject constructor() : ClientRepository {
             dCliente = "Client Number 1",
             nic = "990000$clienteId",
             codigo = "5533",
-            telefono1 = "987102848",
+            telefono1 = "",
             telefono2 = "987102848",
 //            telefono1 = "95123457",
 //            telefono2 = "957654321",
@@ -30,8 +30,8 @@ class ClientRepositoryImpl @Inject constructor() : ClientRepository {
                     ubigeoId = 1,
                     ubigeo = "0400",
                     direccion = "Address Line 1",
-                    latitud = "-16.500000",
-                    longitud = "-16.300000"
+                    latitud = "-16.39862",
+                    longitud = "-71.53662"
                 )
             ),
             rutaId = 1,

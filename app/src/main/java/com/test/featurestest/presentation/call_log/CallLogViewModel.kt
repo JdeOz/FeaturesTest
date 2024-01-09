@@ -14,10 +14,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import android.provider.CallLog
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.lifecycle.viewModelScope
 import com.test.featurestest.domain.model.Phone
-import com.test.featurestest.domain.model.Register
+import com.test.featurestest.domain.model.CallRegister
 import com.test.featurestest.util.Constants.MIN_DURATION
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -30,12 +29,20 @@ class CallLogViewModel @Inject constructor(
     private val resultRepository: ResultRepositoryImpl,
 ) : ViewModel() {
 
+    //States
     private val _isLoading = mutableStateOf(true)
     val isLoading by _isLoading
 
     private val _error = mutableStateOf<String?>(null)
     val error by _error
 
+    private val _success = mutableStateOf(false)
+    val success by _success
+
+    private val _initScreen = mutableStateOf(true)
+    val initScreen by _initScreen
+
+    //Data
     private var _client = mutableStateOf<Client?>(null)
     val client by _client
 
@@ -45,13 +52,9 @@ class CallLogViewModel @Inject constructor(
     private var _results = mutableStateOf<List<Result>>(emptyList())
     val results by _results
 
-    private val _initScreen = mutableStateOf(true)
-    val initScreen by _initScreen
 
-    private val _selectedResultIndex = mutableIntStateOf(0)
-
-    private val _isSelectedResult = mutableStateOf(false)
-    val isSelectedResult by _isSelectedResult
+    private val _selectedResultIndex = mutableStateOf<Int?>(null)
+    val selectedResultIndex by _selectedResultIndex
 
     private val _commentText = mutableStateOf("")
     val commentText by _commentText
@@ -61,21 +64,9 @@ class CallLogViewModel @Inject constructor(
     }
 
     fun updateSelectedResultIndex(newIndex: Int) {
-        _selectedResultIndex.intValue = newIndex
-        _isSelectedResult.value = true
+        _selectedResultIndex.value = newIndex
     }
 
-    fun updatePhones(context:Context){
-        val phone1 = _client.value!!.telefono1
-        val phone2 = _client.value!!.telefono2
-        val phoneSms = _client.value!!.telefonoSms
-        val phones = listOf(
-            Phone(phone1,"Teléfono principal", getLastCallDuration(context, phone1)),
-            Phone(phone2,"Teléfono secundario", getLastCallDuration(context, phone2)),
-            Phone(phoneSms,"Teléfono SMS", getLastCallDuration(context,phoneSms))
-        )
-        _phones.value = phones
-    }
 
     fun loadData(clientId: String) {
         viewModelScope.launch {
@@ -87,7 +78,26 @@ class CallLogViewModel @Inject constructor(
                 _error.value = e.message
             } finally {
                 _isLoading.value = false
+                _success.value = true
+                setPhones()
             }
+        }
+    }
+
+    private fun setPhones(){
+        val phone1 = _client.value!!.telefono1
+        val phone2 = _client.value!!.telefono2
+        val phoneSms = _client.value!!.telefonoSms
+        val phones = listOf(
+            Phone(phone1,"Teléfono principal",0),
+            Phone(phone2,"Teléfono secundario", 0),
+            Phone(phoneSms,"Teléfono SMS", 0)
+        )
+        _phones.value = phones
+    }
+    fun updatePhones(context:Context){
+        _phones.value = _phones.value.map { phone ->
+            phone.copy(lastDuration = getLastCallDuration(context, phone.number))
         }
     }
 
@@ -130,25 +140,25 @@ class CallLogViewModel @Inject constructor(
 
     fun enableRegisterButton(): Boolean {
 
-        return _isSelectedResult.value && _commentText.value.isNotEmpty() && getDurationCond()
+        return _selectedResultIndex.value !=null && _commentText.value.isNotEmpty() && getDurationCond()
     }
 
 
     fun doRegister() {
-        if (_initScreen.value) {
+        if (_initScreen.value && !enableRegisterButton()) {
             _initScreen.value = false
             return
         }
-        val newRegister = createRegisterObject()
+        val newRegister = createCallRegisterObject()
         Timber.d(newRegister.toString())
     }
 
-    private fun createRegisterObject(): Register {
+    private fun createCallRegisterObject(): CallRegister {
         val rutaId = _client.value!!.rutaId
         val clienteId = _client.value!!.clienteId
         val vendedorId = 1
-        val resultadoId = _results.value[_selectedResultIndex.intValue].id
-        val resultado = _results.value[_selectedResultIndex.intValue].description
+        val resultadoId = _results.value[_selectedResultIndex.value!!].id
+        val resultado = _results.value[_selectedResultIndex.value!!].description
         val phone = getDuration()!!
 
         val currentDateTime = LocalDateTime.now()
@@ -158,7 +168,7 @@ class CallLogViewModel @Inject constructor(
         val comentario = _commentText.value
 
 
-        return Register(
+        return CallRegister(
             rutaId = rutaId,
             clienteId = clienteId,
             vendedorId = vendedorId,

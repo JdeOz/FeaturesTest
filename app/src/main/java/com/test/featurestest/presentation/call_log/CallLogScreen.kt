@@ -23,11 +23,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -35,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -45,11 +44,11 @@ import com.test.featurestest.domain.model.Phone
 import com.test.featurestest.presentation.components.ClientCard
 import com.test.featurestest.presentation.components.MyDropDawnMenu
 import com.test.featurestest.presentation.components.MyScaffold
+import com.test.featurestest.presentation.components.ProgressIndicator
 import com.test.featurestest.presentation.components.WarningText
 import com.test.featurestest.presentation.components.WithPermissions
 import com.test.featurestest.util.Constants.MIN_DURATION
 import timber.log.Timber
-
 
 @Composable
 fun CallLogScreen(
@@ -57,39 +56,35 @@ fun CallLogScreen(
     clientId: String,
     viewModel: CallLogViewModel = hiltViewModel()
 ) {
-    val client = viewModel.client
-    val results = viewModel.results
-    val isLoading = viewModel.isLoading
-    val error = viewModel.error
-
     val context = LocalContext.current
-
 
     LaunchedEffect(Unit) {
         viewModel.loadData(clientId)
     }
 
-    MyScaffold(navController = navController, title = "Registrar Llamada") { innerPadding ->
+    MyScaffold(
+        navController = navController,
+        title = "Registrar Llamada"
+
+    ) { innerPadding ->
         when {
-            isLoading -> {
-                LinearProgressIndicator(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(innerPadding),
-                )
+            viewModel.isLoading -> {
+                ProgressIndicator(innerPadding)
             }
 
-            error != null -> {
-                Timber.d(error)
+            viewModel.error != null -> {
+                Timber.d(viewModel.error)
             }
 
-            client != null && results.isNotEmpty() -> {
+            viewModel.success -> {
                 WithPermissions(
-                    permissions =  listOf(android.Manifest.permission.READ_CALL_LOG, android.Manifest.permission.CALL_PHONE),
+                    permissions = listOf(
+                        android.Manifest.permission.READ_CALL_LOG,
+                        android.Manifest.permission.CALL_PHONE
+                    ),
                     onPermissionsGranted = { viewModel.updatePhones(context) }
-                ) {
-                    CallLogContent(innerPadding, context, viewModel)
-                }
+                )
+                CallLogContent(innerPadding, context, viewModel)
             }
         }
     }
@@ -98,16 +93,13 @@ fun CallLogScreen(
 @Composable
 fun CallLogContent(innerPadding: PaddingValues, context: Context, viewModel: CallLogViewModel) {
 
-    val client = viewModel.client!!
-    val scrollState = rememberScrollState()
-
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding)
-            .verticalScroll(scrollState)
+            .verticalScroll(rememberScrollState())
     ) {
-        ClientCard(client.dCliente)
+        ClientCard(viewModel.client!!.dCliente)
 
         Divider()
 
@@ -141,14 +133,6 @@ fun PhoneCard(
     phone: Phone
 ) {
 
-//    val launcher = rememberLauncherForActivityResult(
-//        contract = ActivityResultContracts.RequestPermission(),
-//        onResult = { isGranted ->
-//            if (isGranted) {
-//                viewModel.makePhoneCall(context, phone.number)
-//            }
-//        })
-
     Row(
         modifier = Modifier
             .padding(8.dp)
@@ -160,11 +144,11 @@ fun PhoneCard(
             Box(
                 modifier = Modifier
                     .clickable(onClick = {
-//                        launcher.launch(android.Manifest.permission.CALL_PHONE)
                         viewModel.makePhoneCall(context, phone.number)
                     })
                     .size(32.dp)
-                    .background(Color.LightGray, RoundedCornerShape(4.dp))
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.secondary)
                     .padding(4.dp)
             ) {
                 Icon(
@@ -174,11 +158,11 @@ fun PhoneCard(
             }
 
             Spacer(modifier = Modifier.width(8.dp))
-            Text("${phone.number} (${phone.name})", color = Color.Gray)
+            Text("${phone.number} (${phone.name})")
         }
         Text(
             text = phone.lastDuration.toString() + " Seg.",
-            color = if (!viewModel.getDurationCond() && !viewModel.initScreen) MaterialTheme.colorScheme.error else Color.Gray
+            color = if (!viewModel.getDurationCond() && !viewModel.initScreen) MaterialTheme.colorScheme.error else Color.Unspecified
         )
     }
 }
@@ -198,7 +182,8 @@ fun UpdateDurations(viewModel: CallLogViewModel, context: Context) {
                     viewModel.updatePhones(context)
                 })
                 .size(32.dp)
-                .background(Color.LightGray, RoundedCornerShape(4.dp))
+                .clip(RoundedCornerShape(4.dp))
+                .background(MaterialTheme.colorScheme.secondary)
                 .padding(4.dp)
         ) {
             Icon(
@@ -210,8 +195,7 @@ fun UpdateDurations(viewModel: CallLogViewModel, context: Context) {
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = "Actualizar Registro",
-            fontWeight = FontWeight.Bold,
-            color = Color.Gray,
+            fontWeight = FontWeight.Bold
         )
     }
 }
@@ -258,7 +242,7 @@ fun RegisterButton(viewModel: CallLogViewModel) {
             if (!viewModel.getDurationCond()) {
                 WarningText("Alguna llamada debe durar al menos $MIN_DURATION s.")
             }
-            if (!viewModel.isSelectedResult) {
+            if (viewModel.selectedResultIndex == null) {
                 WarningText("Seleccione un resultado.")
             }
             if (viewModel.commentText.isEmpty()) {

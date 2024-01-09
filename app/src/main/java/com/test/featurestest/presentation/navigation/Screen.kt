@@ -9,4 +9,12 @@ sealed class Screen(val route: String) {
     data object Visit : Screen("Visit/{clientId}") {
         fun createRoute(clientId: String) = "Visit/$clientId"
     }
+
+    data object Receipt : Screen("Receipt/{clientId}") {
+        fun createRoute(clientId: String) = "Receipt/$clientId"
+    }
+
+    data object Deposit : Screen("Deposit/{clientId}") {
+        fun createRoute(clientId: String) = "Deposit/$clientId"
+    }
 }

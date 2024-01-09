@@ -5,6 +5,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.test.featurestest.presentation.call_log.CallLogScreen
+import com.test.featurestest.presentation.deposit.DepositScreen
+import com.test.featurestest.presentation.receipt.ReceiptScreen
 import com.test.featurestest.presentation.feature_selector.FeatureSelectorScreen
 import com.test.featurestest.presentation.visit.VisitScreen
 
@@ -26,6 +28,14 @@ fun NavGraph(startDestination:String = "FeatureSelector"){
         composable(Screen.Visit.route) { backStackEntry ->
             val clientId = backStackEntry.arguments?.getString("clientId") ?: return@composable
             VisitScreen(navController, clientId)
+        }
+        composable(Screen.Receipt.route) { backStackEntry ->
+            val clientId = backStackEntry.arguments?.getString("clientId") ?: return@composable
+            ReceiptScreen(navController, clientId)
+        }
+        composable(Screen.Deposit.route) { backStackEntry ->
+            val clientId = backStackEntry.arguments?.getString("clientId") ?: return@composable
+            DepositScreen(navController, clientId)
         }
     }
 

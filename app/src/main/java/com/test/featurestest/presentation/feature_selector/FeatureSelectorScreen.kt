@@ -22,5 +22,11 @@ fun FeatureSelectorScreen(navController: NavHostController) {
         Button(onClick = { navController.navigate(Screen.Visit.createRoute("aeaseasdzsx")) }) {
             Text("Registro de visitas")
         }
+        Button(onClick = { navController.navigate(Screen.Receipt.createRoute("aeaseasdzsx")) }) {
+            Text("Recibo de cobranza")
+        }
+        Button(onClick = { navController.navigate(Screen.Deposit.createRoute("aeaseasdzsx")) }) {
+            Text("Depósito de cobranza")
+        }
     }
 }

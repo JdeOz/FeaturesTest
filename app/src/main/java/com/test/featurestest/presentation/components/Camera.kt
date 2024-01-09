@@ -27,11 +27,30 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
+@Composable
+fun FullScreenCameraDialog( show:Boolean, notShow: () -> Unit, onPhotoTaken: (Uri) -> Unit) {
+    if (show) {
+        Dialog(
+            onDismissRequest = { notShow() },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            CameraUi(
+                modifier = Modifier.fillMaxSize(),
+                onPhotoTaken = {
+                    onPhotoTaken(it)
+                    notShow()
+                }
+            )
+        }
+    }
+}
 
 @Composable
 fun CameraUi(modifier: Modifier, onPhotoTaken: (Uri) -> Unit) {
@@ -52,7 +71,6 @@ fun CameraUi(modifier: Modifier, onPhotoTaken: (Uri) -> Unit) {
         FloatingActionButton(
             shape = CircleShape,
             containerColor = MaterialTheme.colorScheme.secondary,
-            contentColor = Color.LightGray,
             modifier = Modifier
                 .padding(all = 30.dp)
                 .align(alignment = Alignment.BottomCenter),

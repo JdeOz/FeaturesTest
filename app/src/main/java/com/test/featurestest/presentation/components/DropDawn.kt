@@ -27,16 +27,23 @@ fun MyDropDawnMenu(
     init: Boolean,
     label: String,
     placeholder: String,
+    preSelected: Boolean = false,
+    modifier: Modifier = Modifier,
     onSelectionChange: (Int) -> Unit
 
 ) {
+    var initSelected: String = ""
+    if (preSelected) {
+        initSelected = selectionOptions[0]
+    }
+
     var isExpanded by remember { mutableStateOf(false) }
-    var selected by remember { mutableStateOf("") }
+    var selected by remember { mutableStateOf(initSelected) }
 
     ExposedDropdownMenuBox(
         expanded = isExpanded,
-        onExpandedChange = {  isExpanded = it },
-        modifier = Modifier.padding(4.dp)
+        onExpandedChange = { isExpanded = it },
+        modifier = modifier.padding(4.dp)
     ) {
         OutlinedTextField(
             value = selected,
@@ -59,12 +66,12 @@ fun MyDropDawnMenu(
                 .background(MaterialTheme.colorScheme.background)
                 .exposedDropdownSize()
         ) {
-            selectionOptions.forEachIndexed() { index, selectionOption->
+            selectionOptions.forEachIndexed() { index, selectionOption ->
                 DropdownMenuItem(
                     text = {
                         Text(
                             text = selectionOption,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     },
                     onClick = {
